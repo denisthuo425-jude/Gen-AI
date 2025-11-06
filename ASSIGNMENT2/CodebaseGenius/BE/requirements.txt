@@ -1,0 +1,4 @@
+jaclang          # Jac language runtime
+pyyaml           # For reading/writing YAML configs
+gitpython        # For interacting with git repos
+pytest           # For testing your Python utils
