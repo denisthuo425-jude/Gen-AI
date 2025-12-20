@@ -1,45 +1,100 @@
-import:py from jac_cloud.core.architype { NodeAnchor }
-import:py from jac_cloud.plugin.jaseci { Jac }
+import jsx_client;
+import:py from byllm.lib { Model }
 
-# Re-using the same schema would be ideal, but for a standalone demo 
-# let's define a minimal self-contained version to avoid import complexity errors.
+# --- 1. CONFIGURATION ---
+glob llm = Model(model_name="gemini/gemini-2.0-flash", verbose=True);
 
-glob API_KEY = ""; # Loaded from env in real hybrid setup
+# --- 2. BACKEND LOGIC (Native byLLM) ---
+def generate_strategy_llm(stressor: str, mood: str) -> str by llm(
+    context=["You are an empathetic mental health assistant.", 
+             "Provide a simple, actionable, and comforting 1-sentence coping strategy.", 
+             "Avoid jargon."]
+);
 
+# --- 3. BACKEND WALKER ---
 walker Backend {
-    can fetch_advice with `root entry {
-        report {"message": "Take a deep breath. You are doing great!", "strategy": "Box Breathing"};
+    can get_strategy(mood: str, stressor: str) {
+        if mood == "" or stressor == "" {
+            report {"strategy": "Please tell me how you feel first!"};
+        } else {
+            strat = generate_strategy_llm(stressor, mood);
+            report {"strategy": strat};
+        }
     }
 }
 
-client node MindMateUI {
-    has data: dict = {"message": "Welcome to MindMate Web", "strategy": "..."};
+# --- 4. FRONTEND CLIENT (React-Style) ---
+client node MindMateApp {
+    has data: dict = {
+        "mood": "",
+        "stressor": "",
+        "strategy": "Your AI advice will appear here...",
+        "loading": False
+    };
 
-    can update_ui(new_data: dict) {
-        self.data = new_data;
-    }
+    # UI Events
+    can set_mood(e: dict) { self.data["mood"] = e["target"]["value"]; self.render(); }
+    can set_stressor(e: dict) { self.data["stressor"] = e["target"]["value"]; self.render(); }
 
-    can render {
-        return <div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f4f6f8; border-radius: 12px;">
-            <h1 style="color: #2e86de;">🧠 MindMate Web</h1>
-            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                <h3>Current Vibe Check</h3>
-                <p><strong>Advice:</strong> {self.data["message"]}</p>
-                <p><strong>Strategy:</strong> {self.data["strategy"]}</p>
-                
-                <button onClick={self.get_advice} style="background: #2e86de; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px;">
-✨ Get Fresh Advice</button>
-            </div>
-        </div>;
-    }
+    can get_advice_click(e: dict) {
+        self.data["loading"] = True;
+        self.data["strategy"] = "Thinking...";
+        self.render();
 
-    can get_advice {
         spawn Backend() walk via anchor then (resp) {
-            self.update_ui(resp);
+            self.data["loading"] = False;
+            self.data["strategy"] = resp["strategy"];
+            self.render();
         };
+    }
+
+    # Render View
+    can render() -> jsx_client.JSX {
+        return jsx_client.div(
+            {"style": "font-family: Arial; max-width: 600px; margin: 40px auto; padding: 20px; background: #f8f9fa; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"},
+            
+            jsx_client.h1({"style": "color: #2e86de; text-align: center;"}, "🧠 MindMate Web"),
+            jsx_client.p({"style": "text-align: center; color: #666;"}, "Native Jac-Client Edition"),
+            
+            jsx_client.div(
+                {"style": "margin-bottom: 20px;"},
+                jsx_client.label({"style": "display: block; margin-bottom: 8px; font-weight: bold;"}, "Current Mood"),
+                jsx_client.input({
+                    "type": "text", 
+                    "placeholder": "e.g. Anxious", 
+                    "value": self.data["mood"],
+                    "onChange": self.set_mood,
+                    "style": "width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"
+                })
+            ),
+
+            jsx_client.div(
+                {"style": "margin-bottom: 20px;"},
+                jsx_client.label({"style": "display: block; margin-bottom: 8px; font-weight: bold;"}, "Stressor / Trigger"),
+                jsx_client.input({
+                    "type": "text", 
+                    "placeholder": "e.g. Work Deadlines", 
+                    "value": self.data["stressor"],
+                    "onChange": self.set_stressor,
+                    "style": "width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;"
+                })
+            ),
+
+            jsx_client.button({
+                "onClick": self.get_advice_click,
+                "disabled": self.data["loading"],
+                "style": "width: 100%; padding: 12px; background: #2e86de; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer;"
+            }, "✨ Get AI Strategy"),
+
+            jsx_client.div(
+                {"style": "margin-top: 30px; padding: 20px; background: white; border-radius: 8px; border-left: 5px solid #2e86de;"},
+                jsx_client.h3({"style": "margin-top: 0;"}, "💡 Coping Strategy"),
+                jsx_client.p({"style": "font-size: 1.1em; line-height: 1.5;"}, self.data["strategy"])
+            )
+        );
     }
 }
 
 with entry:client {
-    root spawn MindMateUI();
+    root spawn MindMateApp();
 }
