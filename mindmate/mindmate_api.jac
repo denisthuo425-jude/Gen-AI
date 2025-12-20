@@ -5,9 +5,28 @@
 # ---------------------------------
 
 import datetime;
-import llm_wrapper;
+import from byllm.lib { Model }
 
-glob llm = llm_wrapper.GeminiNC();
+# Initialize Gemini Model
+glob llm = Model(model_name="gemini/gemini-2.0-flash", verbose=True);
+
+# --- Global LLM Capabilities ---
+def generate_strategy_llm(stressor: str, mood: str) -> str by llm(
+    context=["You are an empathetic mental health assistant.", 
+             "Provide a simple, actionable, and comforting 1-sentence coping strategy.", 
+             "Avoid jargon."]
+);
+
+def analyze_sentiment_llm(text: str) -> int by llm(
+    context=["Analyze the sentiment of the text.", 
+             "Return a score from -10 (very negative) to 10 (very positive).", 
+             "Return ONLY the integer number."]
+);
+
+def generate_plan_llm(history: str) -> str by llm(
+    context=["Based on the user's mood history, generate a simple 3-point weekly plan.", 
+             "Format as a list."]
+);
 
 # --- 1. Graph Schema ---
 node User { has name: str = "RootUser"; }
@@ -116,9 +135,7 @@ walker CopingStrategist {
                 disengage;
             }
             
-            prompt = "You are an empathetic mental health assistant. Provide a simple, actionable, and comforting 1-sentence coping strategy. Avoid jargon. Context: I am feeling " + self.mood + " because of " + self.stressor;
-            strategy = llm.infer(meaning_in=prompt, kwargs={});
-            
+            strategy = generate_strategy_llm(self.stressor, self.mood);
             report {"stressor": self.stressor, "strategy": strategy};
 
         } except Exception as e {
@@ -133,17 +150,11 @@ walker SentimentAnalyzer {
 
     can run_analysis with `root entry {
         try {
-            prompt = "Analyze the sentiment of the text. Return a score from -10 (very negative) to 10 (very positive). Return ONLY the number. Text: " + self.text;
-            result = llm.infer(meaning_in=prompt, kwargs={});
-            score = 0;
-            try {
-                score = int(result);
-            } except Exception {
-                score = 0;
-            }
+            score = analyze_sentiment_llm(self.text);
             report {"text": self.text, "score": score};
         } except Exception as e {
-            report {"error": str(e)};
+            # Fallback for parsing errors if LLM returns text
+            report {"error": str(e), "score": 0};
         }
     }
 }
@@ -168,8 +179,7 @@ walker WeeklyPlanner {
             
             self.mood_history = history;
             
-            prompt = "Based on the user's mood history, generate a simple 3-point weekly plan to improve their well-being. Format as a list. History: " + str(self.mood_history);
-            weekly_plan = llm.infer(meaning_in=prompt, kwargs={});
+            weekly_plan = generate_plan_llm(str(self.mood_history));
             
             report {"plan": weekly_plan};
 

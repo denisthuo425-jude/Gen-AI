@@ -1,0 +1,5 @@
+jaclang
+streamlit
+byllm
+python-dotenv
+requests
