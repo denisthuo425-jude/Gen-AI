@@ -11,7 +11,7 @@ It features two modes of operation:
 -   `mindmate_cli.jac`: The standalone CLI application.
 -   `mindmate_api.jac`: The backend API for the Web App.
 -   `app.py`: The Streamlit frontend for the Web App.
--   `mindmate_web.jac`: **(Bonus)** Experimental Native Jac-Client Frontend.
+
 
 ## 🚀 How to Run
 

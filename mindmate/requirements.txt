@@ -3,4 +3,4 @@ streamlit
 byllm
 python-dotenv
 requests
-jac-client
+
