@@ -58,3 +58,8 @@ To enable real AI features, you need a Google Gemini API Key.
 
 > **Note**: The `.env` file is git-ignored to keep your secrets safe. Do not commit it to GitHub.
 
+## 🔮 Future Roadmap
+
+-   **Native Frontend Migration**: We are currently exploring moving the frontend from Streamlit to **Jac-Client** for a unified, single-language architecture.
+-   **Enhanced Analytics**: Deeper integration of graph algorithms for mood pattern detection.
+
